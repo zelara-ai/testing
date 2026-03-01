@@ -127,6 +127,31 @@
   line-height: 1.4;
 }
 
+.testing-section--row {
+  display: flex;
+  gap: 24px;
+}
+
+.testing-live-item {
+  flex: 1;
+}
+
+.clock-display {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2c3e50;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+
+.counter-display {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #9b59b6;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+
 .testing-info {
   background-color: #e8f5e9;
   border: 1px solid #27ae60;
