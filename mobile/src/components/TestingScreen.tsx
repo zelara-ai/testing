@@ -27,9 +27,15 @@ const TestingScreen: React.FC = () => {
   const device = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
 
-  // BLE Discovery Test animation
+  // BLE Discovery Preview animation
   const btAnim = useRef(new Animated.Value(0)).current;
   const desktopIp = DeviceLinkingService.getDesktopIp();
+
+  // Subscribe to connection changes so isConnected updates automatically (no manual refresh needed)
+  useEffect(() => {
+    const unsub = DeviceLinkingService.onConnectionChange(setIsConnected);
+    return unsub;
+  }, []);
 
   // Looping animation: ball slides from Desktop (top) → Mobile (bottom)
   useEffect(() => {
@@ -209,12 +215,13 @@ const TestingScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Bluetooth Discovery Test ── */}
+        {/* ── BLE Discovery Preview (Phase 3 simulation — no actual Bluetooth used) ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Bluetooth Discovery Test</Text>
+          <Text style={styles.sectionTitle}>BLE Discovery — Phase 3 Preview</Text>
           <Text style={styles.description}>
-            Visualises the IP packet BLE will carry in Phase 3. Desktop advertises its IP so
-            Mobile can auto-connect without scanning the QR code.
+            This is a visual simulation only — no Bluetooth is active. It previews what Phase 3
+            will do: Desktop will advertise its IP over BLE so Mobile can auto-connect without
+            scanning a QR code. Currently, QR pairing is required (Phase 1).
           </Text>
 
           <View style={styles.btTrack}>
@@ -447,7 +454,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  // ── Bluetooth Discovery Test ──
+  // ── BLE Discovery Preview ──
   btTrack: {
     backgroundColor: '#f0f4ff',
     borderRadius: 12,
