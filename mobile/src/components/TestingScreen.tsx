@@ -8,6 +8,8 @@ import {
   Image,
   Modal,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import RNFS from 'react-native-fs';
@@ -24,6 +26,48 @@ const TestingScreen: React.FC = () => {
   const camera = useRef<Camera>(null);
   const device = useCameraDevice('back');
   const { hasPermission, requestPermission } = useCameraPermission();
+
+  // BLE Discovery Test animation
+  const btAnim = useRef(new Animated.Value(0)).current;
+  const desktopIp = DeviceLinkingService.getDesktopIp();
+
+  // Looping animation: ball slides from Desktop (top) → Mobile (bottom)
+  useEffect(() => {
+    if (!isConnected) {
+      btAnim.stopAnimation();
+      btAnim.setValue(0);
+      return;
+    }
+
+    let active = true;
+    const runLoop = () => {
+      if (!active) return;
+      btAnim.setValue(0);
+      Animated.timing(btAnim, {
+        toValue: 1,
+        duration: 2600,
+        easing: Easing.inOut(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished && active) runLoop();
+      });
+    };
+    runLoop();
+    return () => { active = false; btAnim.stopAnimation(); };
+  }, [isConnected]);
+
+  const ballTranslateY = btAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 110],
+  });
+  const ballOpacity = btAnim.interpolate({
+    inputRange: [0, 0.08, 0.92, 1],
+    outputRange: [0, 1, 1, 0],
+  });
+  const ballScale = btAnim.interpolate({
+    inputRange: [0, 0.08, 0.92, 1],
+    outputRange: [0.6, 1, 1, 0.6],
+  });
 
   // Auto-increment counter every second while connected; send each value to Desktop
   useEffect(() => {
@@ -163,6 +207,64 @@ const TestingScreen: React.FC = () => {
             onPress={checkConnection}>
             <Text style={styles.buttonText}>Refresh Status</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* ── Bluetooth Discovery Test ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bluetooth Discovery Test</Text>
+          <Text style={styles.description}>
+            Visualises the IP packet BLE will carry in Phase 3. Desktop advertises its IP so
+            Mobile can auto-connect without scanning the QR code.
+          </Text>
+
+          <View style={styles.btTrack}>
+            {/* Desktop node (top) */}
+            <View style={styles.btNode}>
+              <Text style={styles.btIcon}>💻</Text>
+              <Text style={styles.btLabel}>Desktop</Text>
+              <Text style={styles.btIp}>
+                {isConnected && desktopIp ? desktopIp : '—'}
+              </Text>
+            </View>
+
+            {/* Animated lane */}
+            <View style={styles.btLane}>
+              <View style={styles.btWire} />
+              {isConnected && (
+                <Animated.View
+                  style={[
+                    styles.btBall,
+                    {
+                      opacity: ballOpacity,
+                      transform: [
+                        { translateY: ballTranslateY },
+                        { scale: ballScale },
+                      ],
+                    },
+                  ]}>
+                  <Text style={styles.btBallText}>
+                    {desktopIp ?? ''}
+                  </Text>
+                  <Text style={styles.btBallText}>:8765</Text>
+                </Animated.View>
+              )}
+            </View>
+
+            {/* Mobile node (bottom) */}
+            <View style={styles.btNode}>
+              <Text style={styles.btIcon}>📱</Text>
+              <Text style={styles.btLabel}>Mobile</Text>
+              <Text style={isConnected ? styles.btStatusConnected : styles.btStatusWaiting}>
+                {isConnected ? 'Connected' : 'Waiting…'}
+              </Text>
+            </View>
+          </View>
+
+          {!isConnected && (
+            <Text style={[styles.description, styles.btHint]}>
+              Connect to a Desktop first to see the animation.
+            </Text>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -344,6 +446,90 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // ── Bluetooth Discovery Test ──
+  btTrack: {
+    backgroundColor: '#f0f4ff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#d0d8f0',
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  btNode: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  btIcon: {
+    fontSize: 28,
+    lineHeight: 32,
+    marginBottom: 2,
+  },
+  btLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  btIp: {
+    fontSize: 11,
+    color: '#7f8c8d',
+    fontVariant: ['tabular-nums'],
+    marginTop: 2,
+  },
+  btStatusConnected: {
+    fontSize: 11,
+    color: '#27ae60',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  btStatusWaiting: {
+    fontSize: 11,
+    color: '#95a5a6',
+    marginTop: 2,
+  },
+  btLane: {
+    width: 2,
+    height: 110,
+    backgroundColor: 'transparent',
+    position: 'relative',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  btWire: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: '#a0b4e0',
+    opacity: 0.5,
+  },
+  btBall: {
+    position: 'absolute',
+    top: 0,
+    width: 68,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3498db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#3498db',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.45,
+    shadowRadius: 6,
+    elevation: 5,
+    left: -33,
+  },
+  btBallText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
+    lineHeight: 13,
+  },
+  btHint: {
+    color: '#95a5a6',
+    fontStyle: 'italic',
+    marginBottom: 0,
   },
   infoBox: {
     backgroundColor: '#e8f5e9',
